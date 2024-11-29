@@ -18,15 +18,13 @@ cd /hpc/uu_inf_aidsaitfl/a_eijpe/MMP/src
 
 # run mmp
 # Their data
-scripts/survival/brca_surv.sh 0 mmp data_csvs/rna/ rna_clean_theirs
+scripts/survival/brca_surv.sh 0 mmp data_csvs/rna/hallmarks/BRCA rna_clean
 # Own pancancer
-scripts/survival/brca_surv.sh 0 mmp data_csvs/rna/ rna_clean_pan
+scripts/survival/brca_surv.sh 0 mmp ../data/tcga_brca/rna/ rna_clean_pan
 # Own normal
-scripts/survival/brca_surv.sh 0 mmp data_csvs/rna/ rna_clean
+scripts/survival/brca_surv.sh 0 mmp ../data/tcga_brca/rna/ rna_clean_norm
 
 # # run survPath
-# scripts/survival/brca_surv2.sh 0 survpath data_csvs/rna/ rna_clean_pan
-# scripts/survival/brca_surv2.sh 0 survpath data_csvs/rna/ rna_clean
+# scripts/survival/brca_surv.sh 0 survpath ../data/tcga_brca/rna/ rna_clean_pan
+# scripts/survival/brca_surv.sh 0 survpath ../data/tcga_brca/rna/ rna_clean_norm
 
-# scripts/survival/brca_surv.sh 0 survpath_setting2 data_csvs/rna/ rna_clean_pan
-# scripts/survival/brca_surv.sh 0 survpath_setting2 data_csvs/rna/ rna_clean

@@ -193,12 +193,14 @@ def _read_gene(omics_dir, omics_type, split):
     split_path = j_(omics_dir, omics_type + '.csv')
     print("OMICS path: ", split_path)
     if os.path.isfile(split_path):
-        if omics_type == "rna_clean_theirs":
+        # mmp data
+        if omics_type == "rna_clean":
             df = pd.read_csv(split_path, engine='python', index_col=0)
             assert 'Unnamed: 0' not in df.columns
             df = df.reset_index()
             df = df.rename(columns={'index': 'case_id'})
         else:
+            # our data
             df = pd.read_csv(split_path, engine='python', index_col=0)
             df = df.rename(columns={'Unnamed: 0': 'case_id'})
     else:

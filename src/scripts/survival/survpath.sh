@@ -47,7 +47,7 @@ IFS=',' read -r model config_suffix <<< "${model_tuple}"
 model_config=${model}_${config_suffix}
 feat_name=$(echo $feat | sed 's/^extracted-//')
 exp_code=${task}::${model_config}::${feat_name}
-save_dir=${save_dir_root}/${omics_file}/setting1/
+save_dir=${save_dir_root}/${model_mm_type}/${omics_file}/lr_${lr}_opt_${opt}
 
 th=0.00005
 if awk "BEGIN {exit !($lr <= $th)}"; then

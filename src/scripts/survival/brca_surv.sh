@@ -6,7 +6,7 @@ data_rna=$3
 omics_file=$4
 
 ### Dataset Information
-dataroots='data_wsi/tcga_brca'
+dataroots='../data/tcga_brca/wsi'
 
 
 task='BRCA_survival'

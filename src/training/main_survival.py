@@ -72,9 +72,9 @@ def main(args):
 
     censorship_col = args.target_col.split('_')[0] + '_censorship'
     
-    # Specify omics dir
-    cancer_type = args.split_dir.split('/')[-1].split('_')[1]   # 'splits/survival/TCGA_BRCA_overall_survival_k=0' => 'BRCA'
-    args.omics_dir = j_(args.omics_dir, args.type_of_path, cancer_type)
+    # Specify omics dir --> Changed because of different data structure
+    # cancer_type = args.split_dir.split('/')[-1].split('_')[1]   # 'splits/survival/TCGA_BRCA_overall_survival_k=0' => 'BRCA'
+    # args.omics_dir = j_(args.omics_dir, args.type_of_path, cancer_type)
 
     train_kwargs = dict(data_source=args.data_source,
                         survival_time_col=args.target_col,
@@ -300,8 +300,7 @@ if __name__ == "__main__":
         pass
     
     args.results_dir = j_(args.results_dir, 
-                          f'k={args.split_k}', 
-                          str(exp_code)+f"::{get_current_time()}")
+                          f'k={args.split_k}')
 
     os.makedirs(args.results_dir, exist_ok=True)
 
