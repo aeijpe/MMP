@@ -65,12 +65,20 @@ def get_current_time():
     return f"{year:02d}-{month:02d}-{day:02d}-{hour:02d}-{minute:02d}-{second:02d}"
 
 def extract_patching_info(s):
-    match = re.search(r"extracted_mag(\d+)x_patch(\d+)_fp", s)
-    mag, patch_size = -1, -1
+    # tcga_brca/extracted_res0_5_patch256_uni
+    match = re.search(r"extracted_res0_(\d+)_patch(\d+)_uni", s)
+    res, mag, patch_size = -1, -1, -1
     if match:
-        mag = int(match.group(1))
+        res = int(match.group(1))
         patch_size = int(match.group(2))
-        return mag, patch_size
+        if res == 5:
+            mag = 20
+        elif res == 25:
+            mag = 40
+        else:
+            mag = 10
+
+    return mag, patch_size
 
 
 def parse_model_name(model_name, ckpt=None, inference_prec=None):
@@ -159,31 +167,40 @@ def read_splits(args, fold_idx=None):
         splits_csvs[split]['histo'] = _read_histo(args.split_dir, split, fold_idx)
 
         if 'omics_dir' in args:
-            splits_csvs[split]['gene'] = _read_gene(args.omics_dir, split)
+            splits_csvs[split]['gene'] = _read_gene(args.omics_dir, args.omics_type, split)
         else:
             splits_csvs[split]['gene'] = None
 
     return splits_csvs
 
 def _read_histo(split_dir, split, fold_idx):
+    print("READING histology data")
+    print(split_dir)
     if fold_idx is not None:
         split_path = j_(split_dir, f'{split}_{fold_idx}.csv')
     else:
         split_path = j_(split_dir, f'{split}.csv')
+    
+    print(split_path)
 
     if os.path.isfile(split_path):
         df = pd.read_csv(split_path)
         assert 'Unnamed: 0' not in df.columns
     return df
 
-def _read_gene(omics_dir, split):
-    split_path = j_(omics_dir, 'rna_clean.csv')
+def _read_gene(omics_dir, omics_type, split):
+    print("OMICS Type: ", omics_type)
+    split_path = j_(omics_dir, omics_type + '.csv')
+    print("OMICS path: ", split_path)
     if os.path.isfile(split_path):
-        df = pd.read_csv(split_path, engine='python', index_col=0)
-        assert 'Unnamed: 0' not in df.columns
-
-        df = df.reset_index()
-        df = df.rename(columns={'index': 'case_id'})
+        if omics_type == "rna_clean_theirs":
+            df = pd.read_csv(split_path, engine='python', index_col=0)
+            assert 'Unnamed: 0' not in df.columns
+            df = df.reset_index()
+            df = df.rename(columns={'index': 'case_id'})
+        else:
+            df = pd.read_csv(split_path, engine='python', index_col=0)
+            df = df.rename(columns={'Unnamed: 0': 'case_id'})
     else:
         raise FileNotFoundError(f"{split_path} not found!")
 

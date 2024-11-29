@@ -5,29 +5,31 @@ task=$2
 target_col=$3
 split_dir=$4
 split_names=$5
-dataroots=("$@")
+data_rna=$6
+dataroots=$7
+omics_file=$8
 
-feat='extracted-vit_large_patch16_224.dinov2.uni_mass100k'
+feat='extracted_res0_5_patch256_uni'
 input_dim=1024
 mag='20x'
 patch_size=256
 
-bag_size=4096
-batch_size=1
+bag_size=4096 # No prototyping so we need a bag # otherwise to big. Can only take their setting
+batch_size=1 # otherwise to big. Can only take their setting
 out_size=16
-out_type='allcat'
-model_tuple='MIL,default'
-max_epoch=50
+out_type='allcat' # This one is always allcat
+model_tuple='MIL,default' # Take mean offeatures --> not prototyping
+max_epoch=20 # 20?? --> They use a max number of epochs of 20 in their code
 lr=0.0001
 wd=0.00001
 lr_scheduler='cosine'
-opt='adamW'
+opt='adamW' # RadamW????? THEIR SETTING: RAdam
 grad_accum=1
-loss_fn='nll'
+loss_fn='nll' # cox not possible
 n_label_bin=4
-alpha=0.5
+alpha=0.5 # param for nll survloss
 em_step=1
-load_proto=1
+load_proto=0 # was 1, but we do not need it for survpath right?
 es_flag=0
 tau=1.0
 eps=1
@@ -45,7 +47,7 @@ IFS=',' read -r model config_suffix <<< "${model_tuple}"
 model_config=${model}_${config_suffix}
 feat_name=$(echo $feat | sed 's/^extracted-//')
 exp_code=${task}::${model_config}::${feat_name}
-save_dir=${save_dir_root}/${exp_code}
+save_dir=${save_dir_root}/${omics_file}/setting1/
 
 th=0.00005
 if awk "BEGIN {exit !($lr <= $th)}"; then
@@ -57,26 +59,11 @@ else
 fi
 
 # Identify feature paths
-all_feat_dirs=""
-for dataroot_path in "${dataroots[@]}"; do
-  feat_dir=${dataroot_path}/extracted_mag${mag}_patch${patch_size}_fp/${feat}/feats_h5
-  if ! test -d $feat_dir
-  then
-    continue
-  fi
-
-  if [[ -z ${all_feat_dirs} ]]; then
-    all_feat_dirs=${feat_dir}
-  else
-    all_feat_dirs=${all_feat_dirs},${feat_dir}
-  fi
-done
-
-echo $feat_dir
+feat_dir=${dataroots}/${feat}/feats_h5
 
 # Actual command
 cmd="CUDA_VISIBLE_DEVICES=$gpuid python -m training.main_survival \\
---data_source ${all_feat_dirs} \\
+--data_source ${feat_dir} \\
 --results_dir ${save_dir} \\
 --split_dir ${split_dir} \\
 --split_names ${split_names} \\
@@ -111,6 +98,8 @@ cmd="CUDA_VISIBLE_DEVICES=$gpuid python -m training.main_survival \\
 --model_mm_type ${model_mm_type} \\
 --append_embed ${append_embed} \\
 --histo_agg ${histo_agg} \\
+--omics_dir ${data_rna} \\
+--omics_type ${omics_file} \\
 "
 
 # Specifiy prototype path if load_proto is True
@@ -119,5 +108,10 @@ if [[ $load_proto -eq 1 ]]; then
   --proto_path "splits/${split_dir}/prototypes/prototypes_c${out_size}_extracted-${feat_name}_faiss_num_${proto_num_samples}.pkl" \\
   "
 fi
+
+source /hpc/uu_inf_aidsaitfl/miniconda3/bin/activate mmp
+
+# export TMPDIR=/hpc/uu_inf_aidsaitfl/
+cd "/hpc/uu_inf_aidsaitfl/a_eijpe/MMP/src"
 
 eval "$cmd"

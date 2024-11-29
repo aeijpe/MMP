@@ -1,51 +1,56 @@
 #!/bin/bash
-
 gpuid=$1
 task=$2
 target_col=$3
 split_dir=$4
 split_names=$5
-dataroots=("$@")
+data_rna=$6
+dataroots=$7
+omics_file=$8
 
-feat='extracted-vit_large_patch16_224.dinov2.uni_mass100k'
+feat='extracted_res0_5_patch256_uni'
 input_dim=1024
 mag='20x'
 patch_size=256
 
-bag_size='-1'
-batch_size=64
-out_size=16
-out_type='allcat'
-model_tuple='PANTHER,default'
-max_epoch=50
+bag_size='-1' # in mmp, we dont need a bag size --> summarize with morphological prototypes
+batch_size=64 
+out_size=16 # number of prototytpes
+out_type='allcat' # in class PrototypeTokenizer. if protytpes are obtained with OT == allcat (prob=(1/n_prototypes) (every prototype has the same prob, mean = samples itself) OT agregation
+# if prototypes are obtained with PANTHER
+# allcat: Concatenates pi, mu, cov --> this is the one they use in the paper!!
+# weight_param_cat: Concatenates mu and cov weighted by pi
+# What about hard clustering??
+model_tuple='PANTHER,default' # OT, default?? # for histo_model=mil: non-protoype; take the mean to aggregate the embeddings
+max_epoch=20 # paper says 20??
 lr=0.0001
 wd=0.00001
 lr_scheduler='cosine'
 opt='adamW'
 grad_accum=1
-loss_fn='cox'
+loss_fn='cox' # 'cox' # nll
 n_label_bin=4
 alpha=0.5
-em_step=1
+em_step=1 
 load_proto=1
-es_flag=0
-tau=1.0
-eps=1
-n_fc_layer=0
+es_flag=0 # no early stopping
+tau=1.0 # for em step
+eps=1  # for creating conjugate priors of 
+n_fc_layer=0 # not sure
 proto_num_samples='1.0e+05'
 save_dir_root=results
 
 # Multimodal args
 model_mm_type='coattn'    # 'coattn', 'coattn_mot', 'survpath', 'histo', 'gene'
-append_embed='random'
-histo_agg='mean'
+append_embed='random' # the per-prototype embedding added to the embedding. # modality == one-hot per modality (prototypes have the same). proto == onehot per protoype and random == learnable embeddings (used)
+histo_agg='mean' # how the post attention embeddings get aggregated after the feedforward nn layers (fcpost) into the patient embedding. They say it is sum, but it is mean!!!
 num_coattn_layers=1
 
 IFS=',' read -r model config_suffix <<< "${model_tuple}"
 model_config=${model}_${config_suffix}
 feat_name=$(echo $feat | sed 's/^extracted-//')
 exp_code=${task}::${model_config}::${feat_name}
-save_dir=${save_dir_root}/${exp_code}
+save_dir=${save_dir_root}/${omics_file}
 
 th=0.00005
 if awk "BEGIN {exit !($lr <= $th)}"; then
@@ -56,27 +61,12 @@ else
   warmup=1
 fi
 
-# Identify feature paths
-all_feat_dirs=""
-for dataroot_path in "${dataroots[@]}"; do
-  feat_dir=${dataroot_path}/extracted_mag${mag}_patch${patch_size}_fp/${feat}/feats_h5
-  if ! test -d $feat_dir
-  then
-    continue
-  fi
+feat_dir=${dataroots}/${feat}/feats_h5
 
-  if [[ -z ${all_feat_dirs} ]]; then
-    all_feat_dirs=${feat_dir}
-  else
-    all_feat_dirs=${all_feat_dirs},${feat_dir}
-  fi
-done
-
-echo $feat_dir
 
 # Actual command
 cmd="CUDA_VISIBLE_DEVICES=$gpuid python -m training.main_survival \\
---data_source ${all_feat_dirs} \\
+--data_source ${feat_dir} \\
 --results_dir ${save_dir} \\
 --split_dir ${split_dir} \\
 --split_names ${split_names} \\
@@ -111,14 +101,21 @@ cmd="CUDA_VISIBLE_DEVICES=$gpuid python -m training.main_survival \\
 --model_mm_type ${model_mm_type} \\
 --append_embed ${append_embed} \\
 --histo_agg ${histo_agg} \\
+--omics_dir ${data_rna} \\
+--omics_type ${omics_file} \\
 --net_indiv \\
 "
 
 # Specifiy prototype path if load_proto is True
 if [[ $load_proto -eq 1 ]]; then
   cmd="$cmd --load_proto \\
-  --proto_path "splits/${split_dir}/prototypes/prototypes_c${out_size}_extracted-${feat_name}_faiss_num_${proto_num_samples}.pkl" \\
+  --proto_path "splits/${split_dir}/prototypes/prototypes_c${out_size}_${feat_name}_faiss_num_${proto_num_samples}.pkl" \\
   "
 fi
+
+source /hpc/uu_inf_aidsaitfl/miniconda3/bin/activate mmp
+
+# export TMPDIR=/hpc/uu_inf_aidsaitfl/
+cd "/hpc/uu_inf_aidsaitfl/a_eijpe/MMP/src"
 
 eval "$cmd"

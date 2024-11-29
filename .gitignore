@@ -1,8 +1,12 @@
 **/__pycache__/
 **/embeddings/
+**/prototypes/
 **/wandb/
 .ipynb_checkpoints
 src/results/
 .DS_Store
 .vscode
-
+src/data_wsi
+jobs/
+src/data/
+src/scripts/

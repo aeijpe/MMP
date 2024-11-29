@@ -142,14 +142,16 @@ def train(datasets, args):
     results, dumps = {}, {}
     for k, loader in datasets.items():
         print(f'End of training. Evaluating on Split {k.upper()}...:')
-        return_attn = True # True for MMP
+        return_attn = False
+        if args.model_mm_type == "coattn":
+            return_attn = True # True for MMP
         results[k], dumps[k] = validate_survival(model, loader, loss_fn, print_every=args.print_every,
                                                      dump_results=True, return_attn=return_attn, verbose=False)
 
         if k == 'train':
             _ = results.pop('train')  # Train results by default are not saved in the summary, but train dumps are
         
-    writer.close()
+    # writer.close()
     return results, dumps
 
 ## SURVIVAL

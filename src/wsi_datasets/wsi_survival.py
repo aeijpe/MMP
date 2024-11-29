@@ -42,8 +42,8 @@ class WSISurvivalDataset(Dataset):
                  target_transform=None,
                  sample_col='case_id',
                  slide_col='slide_id',
-                 survival_time_col='os_survival_days',
-                 censorship_col='os_censorship',
+                 survival_time_col='dss_survival_days',
+                 censorship_col='dss_censorship',
                  n_label_bins=4,
                  label_bins=None,
                  bag_size=0,
@@ -277,7 +277,7 @@ class WSISurvivalDataset(Dataset):
         return self.label_bins
 
 
-def compute_discretization(df, survival_time_col='os_survival_days', censorship_col='os_censorship', n_label_bins=4, label_bins=None):
+def compute_discretization(df, survival_time_col='dss_survival_days', censorship_col='dss_censorship', n_label_bins=4, label_bins=None):
     df = df[~df['case_id'].duplicated()] # make sure that we compute discretization on unique cases
 
     if label_bins is not None:
@@ -312,8 +312,8 @@ class WSIOmicsSurvivalDataset(WSISurvivalDataset):
                  target_transform=None,
                  sample_col='case_id',
                  slide_col='slide_id',
-                 survival_time_col='os_survival_days',
-                 censorship_col='os_censorship',
+                 survival_time_col='dss_survival_days',
+                 censorship_col='dss_censorship',
                  n_label_bins=4,
                  label_bins=None,
                  bag_size=0,

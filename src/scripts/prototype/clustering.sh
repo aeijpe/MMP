@@ -3,9 +3,9 @@
 gpuid=$1
 split_dir=$2
 split_names=$3
-dataroots=("$@")
+dataroots=$4
 
-feat='extracted-vit_large_patch16_224.dinov2.uni_mass100k'
+feat='extracted_res0_5_patch256_uni'
 input_dim=1024
 mag='20x'
 patch_size=256
@@ -16,24 +16,11 @@ n_init=3  # Number of KMeans initializations to perform
 
 
 # Validity check for feat paths
-all_feat_dirs=""
-for dataroot_path in "${dataroots[@]}"; do
-  feat_dir=${dataroot_path}/extracted_mag${mag}_patch${patch_size}_fp/${feat}/feats_h5
-  if ! test -d $feat_dir
-  then
-    continue
-  fi
-
-  if [[ -z ${all_feat_dirs} ]]; then
-    all_feat_dirs=${feat_dir}
-  else
-    all_feat_dirs=${all_feat_dirs},${feat_dir}
-  fi
-done
+feat_dir=${dataroots}/${feat}/feats_h5
 
 cmd="CUDA_VISIBLE_DEVICES=$gpuid python -m training.main_prototype \\
 --mode ${mode} \\
---data_source ${all_feat_dirs} \\
+--data_source ${feat_dir} \\
 --split_dir ${split_dir} \\
 --split_names ${split_names} \\
 --in_dim ${input_dim} \\

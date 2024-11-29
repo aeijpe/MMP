@@ -193,6 +193,7 @@ parser.add_argument('--append_embed', type=str, default='none',
 parser.add_argument('--append_prob', action='store_true', default=False)
 parser.add_argument('--histo_agg', default='mean')
 parser.add_argument('--omics_dir', default='./data_csvs/rna')
+parser.add_argument('--omics_type', default='rna_clean')
 parser.add_argument('--omics_modality', default='pathway')
 parser.add_argument('--type_of_path', default='hallmarks')
 
@@ -216,7 +217,7 @@ parser.add_argument('--nll_alpha', type=float, default=0,
 parser.add_argument('--exp_code', type=str, default=None,
                     help='experiment code for saving results')
 parser.add_argument('--task', type=str, default='unspecified_survival_task')
-parser.add_argument('--target_col', type=str, default='os_survival_days')
+parser.add_argument('--target_col', type=str, default='dss_survival_days')
 parser.add_argument('--n_label_bins', type=int, default=4,
                     help='number of bins for event time discretization')
 
@@ -269,7 +270,9 @@ if __name__ == "__main__":
 
         ### parse patching info ###
         feat_name = os.path.basename(src)
-        mag, patch_size = extract_patching_info(os.path.dirname(src))
+        dir_name = os.path.dirname(src)
+        print(dir_name)
+        mag, patch_size = extract_patching_info(dir_name)
         if (mag < 0 or patch_size < 0):
             raise ValueError(f"invalid patching info parsed for {src}")
         check_params_same.append([feat_name, mag, patch_size])
@@ -297,9 +300,7 @@ if __name__ == "__main__":
         pass
     
     args.results_dir = j_(args.results_dir, 
-                          args.task, 
                           f'k={args.split_k}', 
-                          str(exp_code), 
                           str(exp_code)+f"::{get_current_time()}")
 
     os.makedirs(args.results_dir, exist_ok=True)
