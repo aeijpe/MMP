@@ -47,7 +47,7 @@ def main(args):
                                     train_kwargs=train_kwargs)
 
     print('\nInit Datasets...', end=' ')
-    os.makedirs(j_(args.split_dir, 'prototypes'), exist_ok=True)
+    os.makedirs(j_(args.split_dir, 'prototype_MMP'), exist_ok=True)
 
     loader_train = dataset_splits['train']
     
@@ -62,8 +62,8 @@ def main(args):
     
 
     save_fpath = j_(args.split_dir,
-                    'prototypes',
-                    f"prototypes_c{args.n_proto}_{args.data_source[0].split('/')[-2]}_{args.mode}_num_{args.n_proto_patches:.1e}.pkl")
+                    'prototype_MMP',
+                    f"prototypes_{args.n_proto}_type_{args.mode}_init_{args.n_init}_nr_{args.n_proto_patches}.pkl")
 
     save_pkl(save_fpath, {'prototypes': weights})
 
@@ -95,7 +95,6 @@ parser.add_argument('--num_workers', type=int, default=8)
 args = parser.parse_args()
 
 if __name__ == "__main__":
-    args.split_dir = j_('splits', args.split_dir)
     args.split_name = os.path.basename(args.split_dir)
     print('split_dir: ', args.split_dir)
 

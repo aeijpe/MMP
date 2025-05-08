@@ -111,7 +111,7 @@ def main(args):
                                     train_kwargs=train_kwargs,
                                     val_kwargs=val_kwargs)
 
-    fold_results, fold_dumps = train(dataset_splits, args)
+    fold_results, fold_dumps, val_res = train(dataset_splits, args)
 
     # Save results
     for split, split_results in fold_results.items():
@@ -129,6 +129,8 @@ def main(args):
     
     dump_path = j_(args.results_dir, 'all_dumps.h5')
     save_pkl(dump_path, fold_dumps)
+    print("VAL results for 19!!!!")
+    print(val_res)
 
     return final_dict
 
@@ -246,14 +248,12 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if __name__ == "__main__":
 
     print('task: ', args.task)
-    args.split_dir = j_('splits', args.split_dir)
     print('split_dir: ', args.split_dir)
-    split_num = args.split_dir.split('/')[2].split('_k=')
-    args.split_name_clean = args.split_dir.split('/')[2].split('_k=')[0]
-    if len(split_num) > 1:
-        args.split_k = int(split_num[1])
-    else:
-        args.split_k = 0
+    split_num = args.split_dir.split('/')[-1].split('_k=')
+    # args.split_name_clean = args.split_dir.split('/')[-1].split('_k=')[0]
+    print("split number: ", split_num)
+    args.split_k = int(split_num[1])
+    print("split number: ", args.split_k)
 
     if args.load_proto:
         assert os.path.isfile(args.proto_path), f"Path {args.proto_path} doesn't exist!"
@@ -294,10 +294,10 @@ if __name__ == "__main__":
         setattr(args, key, val)
     
     ### setup results dir ###
-    if args.exp_code is None:
-        exp_code = f"{args.split_name_clean}::{args.model_histo_config}::{feat_name}"
-    else:
-        pass
+    # if args.exp_code is None:
+    #     exp_code = f"{args.split_name_clean}::{args.model_histo_config}::{feat_name}"
+    # else:
+    #     pass
     
     args.results_dir = j_(args.results_dir, 
                           f'k={args.split_k}')

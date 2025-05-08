@@ -179,7 +179,7 @@ def _read_histo(split_dir, split, fold_idx):
     if fold_idx is not None:
         split_path = j_(split_dir, f'{split}_{fold_idx}.csv')
     else:
-        split_path = j_(split_dir, f'{split}.csv')
+        split_path = j_(split_dir, f'{split}_filtered.csv')
     
     print(split_path)
 

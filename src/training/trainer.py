@@ -7,11 +7,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-try:
-    from sksurv.metrics import concordance_index_censored
-except ImportError:
-    print('scikit-survival not installed. Exiting...')
-    raise
+from sksurv.metrics import concordance_index_censored, concordance_index_ipcw
+from sksurv.util import Surv
 
 from mil_models.tokenizer import PrototypeTokenizer
 from mil_models import create_multimodal_survival_model, prepare_emb
@@ -105,7 +102,7 @@ def train(datasets, args):
 
         ### Train Loop
         print('#' * 10, f'TRAIN Epoch: {epoch}', '#' * 10)
-        train_results = train_loop_survival(model, datasets['train'], optimizer, lr_scheduler, loss_fn,
+        train_results, train_info = train_loop_survival(model, datasets['train'], optimizer, lr_scheduler, loss_fn,
                                             print_every=args.print_every, accum_steps=args.accum_steps)
 
 
@@ -114,22 +111,28 @@ def train(datasets, args):
             print('#' * 11, f'VAL Epoch: {epoch}', '#' * 11)
             val_results, _ = validate_survival(model, datasets['val'], loss_fn,
                                                    print_every=args.print_every, verbose=True)
+            
+        if epoch == 19:
+            torch.save(model.state_dict(), j_(args.results_dir, f"s_checkpoint_19.pth"))
+            val_res19 = validate_survival(model, datasets['test'], loss_fn,
+                                                   print_every=args.print_every, verbose=True)
+
 
             ### Check Early Stopping (Optional)
-            if early_stopper is not None:
-                if args.es_metric == 'loss':
-                    score = val_results['loss']
+            # if early_stopper is not None:
+            #     if args.es_metric == 'loss':
+            #         score = val_results['loss']
 
-                else:
-                    raise NotImplementedError
-                save_ckpt_kwargs = dict(config=vars(args),
-                                        epoch=epoch,
-                                        model=model,
-                                        score=score,
-                                        fname=f's_checkpoint.pth')
-                stop = early_stopper(epoch, score, save_checkpoint, save_ckpt_kwargs)
-                if stop:
-                    break
+            #     else:
+            #         raise NotImplementedError
+            #     save_ckpt_kwargs = dict(config=vars(args),
+            #                             epoch=epoch,
+            #                             model=model,
+            #                             score=score,
+            #                             fname=f's_checkpoint.pth')
+            #     stop = early_stopper(epoch, score, save_checkpoint, save_ckpt_kwargs)
+            #     if stop:
+            #         break
         print('#' * (22 + len(f'TRAIN Epoch: {epoch}')), '\n')
 
     ### End of epoch: Load in the best model (or save the latest model with not early stopping)
@@ -145,14 +148,14 @@ def train(datasets, args):
         return_attn = False
         if args.model_mm_type == "coattn":
             return_attn = True # True for MMP
-        results[k], dumps[k] = validate_survival(model, loader, loss_fn, print_every=args.print_every,
+        results[k], dumps[k] = validate_survival(model, loader, loss_fn, train_data_info=train_info, print_every=args.print_every,
                                                      dump_results=True, return_attn=return_attn, verbose=False)
 
         if k == 'train':
             _ = results.pop('train')  # Train results by default are not saved in the summary, but train dumps are
         
     # writer.close()
-    return results, dumps
+    return results, dumps, val_res19
 
 ## SURVIVAL
 def train_loop_survival(model, loader, optimizer, lr_scheduler, loss_fn=None, 
@@ -213,12 +216,14 @@ def train_loop_survival(model, loader, optimizer, lr_scheduler, loss_fn=None,
     results = {k: meter.avg for k, meter in meters.items()}
     results.update({'c_index': c_index})
     results['lr'] = optimizer.param_groups[0]['lr']
-    return results
+    train_data_info = {"censorships": all_censorships, "times": all_event_times}
+    return results, train_data_info
 
 
 @torch.no_grad()
 def validate_survival(model, loader,
                       loss_fn=None,
+                      train_data_info=None,
                       print_every=50,
                       dump_results=False,
                       recompute_loss_at_end=True,
@@ -238,6 +243,14 @@ def validate_survival(model, loader,
         event_time = batch['survival_time'].to(device)
         censorship = batch['censorship'].to(device)
         attn_mask = batch['attn_mask'].to(device) if ('attn_mask' in batch) else None
+        # print(f"Bag size: {data.shape}")
+        if data.size(1) > 130000:
+            print(f"Bag size: {data.shape}")
+            print("Made smaller!")
+            indices = torch.randperm(data.size(1))[:120000]  # Random indices of size [160000]
+
+            # Gather the sampled elements
+            data = data[:, indices, :] 
         
         out, log_dict = model(data, omics, attn_mask=attn_mask, label=label, censorship=censorship, loss_fn=loss_fn, return_attn=return_attn)
         if return_attn:
@@ -277,8 +290,19 @@ def validate_survival(model, loader,
 
     c_index = concordance_index_censored(
         (1 - all_censorships).astype(bool), all_event_times, all_risk_scores, tied_tol=1e-08)[0]
+
     results = {k: meter.avg for k, meter in meters.items()}
     results.update({'c_index': c_index})
+
+    if train_data_info:
+        structured_survival_data_test = Surv.from_arrays(event=(1-all_censorships).astype(bool), time=all_event_times)
+        structured_survival_data_train = Surv.from_arrays(event=(1-train_data_info['censorships']).astype(bool), time=train_data_info['times'])
+
+        c_index_ipcw = concordance_index_ipcw(structured_survival_data_train, structured_survival_data_test, estimate=all_risk_scores)[0]
+
+        results.update({'c_index_ipcw': c_index_ipcw})
+
+
 
     if recompute_loss_at_end and isinstance(loss_fn, CoxLoss):
         surv_loss_dict = loss_fn(logits=torch.tensor(all_risk_scores).unsqueeze(1),
